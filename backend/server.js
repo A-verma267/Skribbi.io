@@ -5,8 +5,9 @@ import { Server } from "socket.io";
 import cors from "cors";
 import { getRandomWords } from "./utils/getRandomWords.js";
 
-require("dotenv").config();
+import dotenv from "dotenv";
 
+dotenv.config();
 
 const rooms = {};
 
@@ -181,7 +182,7 @@ io.on("connection", (socket) => {
     });
 })
 
-server.listen(3001, () => {
+server.listen(port, () => {
     console.log("Server running on ");
 
 })
