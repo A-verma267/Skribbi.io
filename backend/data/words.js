@@ -1,0 +1,17 @@
+export const WORDS = [
+    "Apple",
+    "Tiger",
+    "Laptop",
+    "Pizza",
+    "Mountain",
+    "Camera",
+    "Elephant",
+    "Rocket",
+    "School",
+    "Chair",
+    "Bottle",
+    "Rainbow",
+    "Monkey",
+    "Bridge",
+    "Clock",
+];

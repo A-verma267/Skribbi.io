@@ -20,6 +20,9 @@ const RoomContextProvider = ({ children }) => {
   const [currentRound, setCurrentRound] = useState(1);
   const [language, setLanguage] = useState("English");
   const [drawerId, setDrawerId] = useState("");
+  const [wordOptions, setWordOptions] = useState([]);
+  const [choosingWord, setChoosingWord] = useState(false);
+  const [selectedWord, setSelectedWord] = useState("");
 
   const settings = [
     {
@@ -155,8 +158,8 @@ const RoomContextProvider = ({ children }) => {
   ];
 
   const value = {
-    roomId,
-    setRoomId,
+    roomId, wordOptions, setWordOptions,choosingWord, setChoosingWord,
+    setRoomId,selectedWord, setSelectedWord,
     players,
     setPlayers,
     hostId,
@@ -189,6 +192,8 @@ const RoomContextProvider = ({ children }) => {
     currentRound,
     setCurrentRound,
   };
+  console.log(players);
+  
 
   return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>;
 };

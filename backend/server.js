@@ -3,6 +3,7 @@ import http from "http";
 import { Server } from "socket.io";
 
 import cors from "cors";
+import { getRandomWords } from "./utils/getRandomWords.js";
 
 const rooms = {};
 
@@ -70,6 +71,9 @@ io.on("connection", (socket) => {
                 currentDrawer: null,
                 currentDrawerIndex: 0,
                 scoreboard: [],
+                currentWords: "",
+                wordOptions: [],
+                choosingWord: false,
             };
 
         }
@@ -108,13 +112,10 @@ io.on("connection", (socket) => {
     })
 
     socket.on("start-game", ({ roomId }) => {
-
-        
         const room = rooms[roomId];
-        
-        if (!room){
+        if (!room) {
             return;
-        } 
+        }
 
         if (room.hostId !== socket.id) return;
 
@@ -125,18 +126,55 @@ io.on("connection", (socket) => {
             return;
         }
 
+        const drawer = room.players[0];
         room.gameStarted = true;
         room.currentDrawerIndex = 0;
         room.currentRound = 1;
+        room.currentDrawer = drawer.id;
+        const options = getRandomWords(3);
+        room.wordOptions = options;
+        room.choosingWord = true;
 
-        const drawer = room.players[0];
-        
+
         io.to(roomId).emit("game-started", {
             gameStarted: room.gameStarted,
-            drawerId: drawer.id,
+            drawerId: room.currentDrawer,
             currentRound: room.currentRound,
-        })
+        });
+
+        setTimeout(() => {
+            io.to(drawer.id).emit("choose-word", {
+                words: options,
+            });
+        }, 2000);
     })
+
+    socket.on("word-selected", ({ roomId, word }) => {
+
+        const room = rooms[roomId];
+
+        if (!room) return;
+
+        // Only current drawer can choose
+        if (socket.id !== room.currentDrawer)
+            return;
+
+        // Already selected?
+        if (room.currentWord)
+            return;
+
+        room.currentWord = word;
+        room.choosingWord = false;
+
+        io.to(roomId).emit("drawing-started", {
+            drawerId: room.currentDrawer,
+            wordLength: word.length
+        });
+
+        io.to(room.currentDrawer).emit("drawer-word", {
+            word
+        });
+    });
 })
 
 server.listen(3001, () => {

@@ -65,6 +65,7 @@ export default function GameLobby() {
   useEffect(()=>{
     setRoomId(roomid);
   },[roomid])
+  console.log(players);
   
   useEffect(() => {
 
@@ -73,7 +74,6 @@ export default function GameLobby() {
         setGameStarted(data.gameStarted);
         setDrawerId(data.drawerId);
         setCurrentRound(data.currentRound);
-
         navigate(`/game/${roomid}`);
 
     }

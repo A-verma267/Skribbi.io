@@ -1,30 +1,99 @@
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import { RoomContext } from "../context/RoomContext";
 import socket from "../services/socket";
 
-export default function Game(){
+export default function Game() {
+  const {
+    setWordOptions,
+    setChoosingWord,
+    choosingWord,
+    roomId,
+    wordOptions,
+    drawerId,
+    currentRound,
+    rounds,
+  } = useContext(RoomContext);
 
-    const {
-        drawerId,
-        currentRound,
-        rounds,
-    } = useContext(RoomContext);
+  useEffect(() => {
+    function handleDrawerWord(data) {
+      console.log("Drawer word:", data.word);
 
-    const isDrawer = socket.id === drawerId;
+      setCurrentWord(data.word);
+      setChoosingWord(false);
+    }
 
-    return (
+    socket.on("drawer-word", handleDrawerWord);
 
-        <div>
+    return () => socket.off("drawer-word", handleDrawerWord);
+  }, []);
 
-            <h1>Round {currentRound}</h1>
+  useEffect(() => {
+    function handleDrawingStarted(data) {
+      console.log("Drawing started");
 
-            {isDrawer ? (
-                <h2>You are drawing!</h2>
-            ) : (
-                <h2>Guess the word!</h2>
-            )}
+      setDrawerId(data.drawerId);
+      setWordLength(data.wordLength);
+      setChoosingWord(false);
 
-        </div>
+    }
 
-    );
+    socket.on("drawing-started", handleDrawingStarted);
+
+    return () => socket.off("drawing-started", handleDrawingStarted);
+  }, []);
+
+  function selectWord(word) {
+    socket.emit("word-selected", {
+      roomId,
+      word,
+    });
+
+    setChoosingWord(false);
+  }
+  useEffect(() => {
+    console.log("Game-mounted");
+
+    function handleChooseWord(data) {
+      console.log("choose-word received:", data);
+
+      setWordOptions(data.words);
+
+      setChoosingWord(true);
+    }
+
+    socket.on("choose-word", handleChooseWord);
+
+    return () => {
+      socket.off("choose-word", handleChooseWord);
+    };
+  }, [setWordOptions, setChoosingWord]);
+
+  const isDrawer = socket.id === drawerId;
+
+  return (
+    <div>
+      <h1>
+        Round {currentRound} / {rounds}
+      </h1>
+
+      {isDrawer ? (
+        <>
+          <h2>You are drawing!</h2>
+          {choosingWord && (
+            <div className="choose-word-modal">
+              <h2>Choose a word</h2>
+
+              {wordOptions.map((word) => (
+                <button key={word} onClick={() => selectWord(word)}>
+                  {word}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <h2>Guess the word!</h2>
+      )}
+    </div>
+  );
 }
