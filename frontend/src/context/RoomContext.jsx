@@ -1,4 +1,5 @@
 import { createContext, useState } from "react";
+import socket from "../services/socket";
 
 const RoomContext = createContext();
 
@@ -14,16 +15,16 @@ const RoomContextProvider = ({ children }) => {
   const [hints, setHints] = useState("2");
   const [customWords, setCustomWords] = useState("");
   const [customWordsOnly, setCustomWordsOnly] = useState(false);
-  const [gamestarted, setGameStarted] = useState(false);
-  const [drawer, setDrawer] = useState(null);
+  const [gameStarted, setGameStarted] = useState(false);
   const [scoreboard, setScoreBoard] = useState([]);
   const [currentRound, setCurrentRound] = useState(1);
-    const [language, setLanguage] = useState("English");
+  const [language, setLanguage] = useState("English");
+  const [drawerId, setDrawerId] = useState("");
 
   const settings = [
     {
       key: "maxplayers",
-      label: "maxPlayers",
+      label: "Players",
       value: ["2", "3", "4", "5", "6", "7", "8", "9"],
       icon: (
         <svg
@@ -160,12 +161,8 @@ const RoomContextProvider = ({ children }) => {
     setPlayers,
     hostId,
     setHostId,
-    currentRound,
-    setCurrentRound,
-    gamestarted,
-    setGameStarted,
-    drawer,
-    setDrawer,
+    drawerId,
+    setDrawerId,
     scoreboard,
     setScoreBoard,
     settings,
@@ -184,10 +181,16 @@ const RoomContextProvider = ({ children }) => {
     customWordsOnly,
     setCustomWordsOnly,
     customWords,
-    setCustomWords, language, setLanguage
+    setCustomWords,
+    language,
+    setLanguage,
+    gameStarted,
+    setGameStarted,
+    currentRound,
+    setCurrentRound,
   };
 
   return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>;
 };
 
-export { RoomContext , RoomContextProvider};
+export { RoomContext, RoomContextProvider };

@@ -28,7 +28,32 @@ export default function GameLobby() {
   const inviteLink = `${window.location.origin}/room/${roomid}`;
   const {avataricon, name} = useContext(UserContext);
   // const [roomPlayers , setRoomPlayers] = useState([]);
-  const {players , setPlayers , setRoomId ,settings ,maxplayers, setMaxPlayers,drawtime, setDrawtime,rounds, setRounds,gameMode, setGameMode ,wordCount, setWordCount ,hints, setHints,customWordsOnly, setCustomWordsOnly,customWords, setCustomWords ,language, setLanguage } = useContext(RoomContext)
+  const {players , setPlayers , setRoomId ,settings ,maxplayers, setMaxPlayers,drawtime, setDrawtime,rounds, setRounds,gameMode, setGameMode ,wordCount, setWordCount ,hints, setHints,customWordsOnly, setCustomWordsOnly,customWords, setCustomWords ,language, setLanguage , hostId , setHostId , setGameStarted , setDrawerId , setCurrentRound } = useContext(RoomContext)
+ 
+  const isHost = socket.id === hostId;
+  useEffect(() => {
+    const handleRoomUpdated = (room) => {
+      setPlayers(room.players);
+      setHostId(room.hostId);
+      if(room.settings){
+        setMaxPlayers(room.settings.maxplayers);
+        setLanguage(room.settings.language);
+        setDrawtime(room.settings.drawtime);
+        setRounds(room.settings.rounds);
+        setGameMode(room.settings.gameMode);
+        setWordCount(room.settings.wordCount);
+        setHints(room.settings.hints);
+        setCustomWords(room.settings.customWords);
+        setCustomWordsOnly(room.settings.customWordsOnly);
+      }
+    };
+
+    socket.on("room-updated", handleRoomUpdated);
+
+    return () => {
+      socket.off("room-updated", handleRoomUpdated);
+  };
+}, [setPlayers, setHostId]);
 
   useEffect(() => {
     if (!name) {
@@ -40,19 +65,28 @@ export default function GameLobby() {
   useEffect(()=>{
     setRoomId(roomid);
   },[roomid])
-  useEffect(()=>{
-    socket.on("players-updated",(players) =>{
-      console.log(players);
-      setPlayers(players);
-    });
+  
+  useEffect(() => {
 
-    return () =>{
-      socket.off("players-updated");
+    const handleGameStarted = (data) => {
+        
+        setGameStarted(data.gameStarted);
+        setDrawerId(data.drawerId);
+        setCurrentRound(data.currentRound);
+
+        navigate(`/game/${roomid}`);
+
     }
 
-  },[setPlayers]);
+    socket.on("game-started", handleGameStarted);
 
-  const settingValues = { maxplayers, language, drawtime, rounds, gameMode, wordCount, hints };
+    return ()=>{
+        socket.off("game-started", handleGameStarted);
+    }
+
+}, [roomid, navigate]);
+
+  const settingValues = { maxplayers, language, drawtime, rounds, gameMode, wordCount, hints , customWords , customWordsOnly };
   const settingSetters = {
     maxplayers: setMaxPlayers,
     language: setLanguage,
@@ -61,17 +95,14 @@ export default function GameLobby() {
     gameMode: setGameMode,
     wordCount: setWordCount,
     hints: setHints,
+    customWords : setCustomWords,
+    customWordsOnly:setCustomWordsOnly
   };
 
     
     useEffect(()=>{
       if(!roomid || !socket.connected || !name) return ;
     function joinRoom(){
-      // console.log("Joining" , roomid);
-      // console.log("EMITTING JOIN");
-      // console.log(roomid);
-      // console.log(socket.id);
-      // console.log(socket.connected);
       socket.emit("join-room",{
         roomId:roomid,
         player:{
@@ -94,16 +125,61 @@ export default function GameLobby() {
       socket.off("connect", joinRoom);
     }
   },[roomid , name , avataricon])
-  
+
+  useEffect(()=>{
+    function handleGameError(data){
+      alert(data.message);
+    } 
+
+    socket.on("game-error",handleGameError);
+
+    return (()=>{
+      socket.off("game-error",handleGameError);
+    })
+  },[])
+  function handleSettingChange(key , value){
+    
+    
+    settingSetters[key](value);
+
+    socket.emit("update-settings",{
+      roomId: roomid,
+      settings:{
+        maxplayers,
+        language,
+        drawtime,
+        rounds,
+        gameMode,
+        wordCount,
+        hints,
+        customWords,
+        customWordsOnly,
+        [key] : value,
+      }
+    })
+  }
 
   function handlestart(){
     
-    if((customWords.split(",").filter(word => word.trim() !== "")).length <2) alert("Enter the min 10 words");
-    // else if()
+    
+    const words = customWords
+    .split(",")
+    .map(word => word.trim())
+    .filter(word => word !== "");
+    
+    
+    if (customWordsOnly || words.length < 2) {
+      
+      alert("Please enter at least 2 custom words.");
+      return;
+    }
+    
+    socket.emit("start-game", {
+      roomId: roomid
+    });
   }
   const handleInvite = async() =>{
     try {
-      console.log(inviteLink);
 
       await navigator.clipboard.writeText(inviteLink);
       alert("Invite Link Copied !");
@@ -138,7 +214,9 @@ export default function GameLobby() {
             <div key={player.id} className="flex items-center gap-3 rounded-md border-2 border-black bg-white p-2 shadow-md">
               <span className="text-sm font-bold text-slate-500">#{index + 1}</span>
               <div className="flex flex-1 flex-col">
-                <span className="text-sm font-bold text-blue-600">{player.name} {player.id === socket.id ? " (You)" : ""}</span>
+                <span className="text-sm font-bold text-blue-600">{player.name} {player.id === hostId && (
+                  <span className="ml-2 rounded bg-yellow-400 px-2 py-1 text-xs">Host</span>
+                )}</span>
                 <span className="text-xs text-slate-500">0 points</span>
               </div>
               <div className={`flex h-10 w-10 items-center justify-center rounded-full `}>
@@ -157,10 +235,10 @@ export default function GameLobby() {
                   <span className="text-white">{s.icon}</span>
                   {s.label}
                 </label>
-                <select
+                <select disabled={!isHost}
                   id={s.key}
                   value={settingValues[s.key]}
-                  onChange={(e) => settingSetters[s.key](e.target.value)}
+                  onChange={(e) => handleSettingChange(s.key , e.target.value)}
                   className="w-full rounded-md border-2 border-black bg-white px-3 py-2 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                   {
@@ -181,23 +259,25 @@ export default function GameLobby() {
             <label className="flex items-center gap-2 text-sm font-bold text-white">
               Use custom words only
               <input
+                disabled={!isHost}
                 type="checkbox"
                 checked={customWordsOnly}
-                onChange={(e) => setCustomWordsOnly(e.target.checked)}
+                onChange={(e) =>handleSettingChange("customWordsOnly" , e.target.checked)}
                 className="h-4 w-4 accent-blue-500"
               />
             </label>
           </div>
 
           <textarea
+          disabled={!isHost}
             value={customWords}
-            onChange={(e) => setCustomWords(e.target.value)}
+            onChange={(e) => handleSettingChange("customWords" , e.target.value)}
             placeholder="Minimum of 10 words. 1-32 characters per word! 20000 characters maximum. Separated by a , (comma)"
             className="mt-2 h-64 w-full resize-none rounded-md border-2 border-black bg-white p-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
 
           <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-            <button onClick={handlestart} className="flex-1 rounded-md border-2 border-black bg-green-500 py-3 text-lg font-extrabold text-white shadow-md transition hover:scale-[1.02] hover:bg-green-400 active:scale-95">
+            <button disabled={!isHost} onClick={handlestart} className="flex-1 rounded-md border-2 border-black bg-green-500 py-3 text-lg font-extrabold text-white shadow-md transition hover:scale-[1.02] hover:bg-green-400 active:scale-95">
               Start!
             </button>
             <button onClick={handleInvite} className="flex flex-1 items-center justify-center gap-2 rounded-md border-2 border-black bg-blue-500 py-3 text-lg font-extrabold text-white shadow-md transition hover:scale-[1.02] hover:bg-blue-400 active:scale-95">
