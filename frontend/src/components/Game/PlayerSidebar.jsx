@@ -37,6 +37,3 @@ import PlayerCard from "./PlayerCard";
   );
 }
 
-PlayerSidebar.defaultProps = {
-  players: DUMMY_PLAYERS,
-};
