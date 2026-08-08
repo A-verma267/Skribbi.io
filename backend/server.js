@@ -190,3 +190,6 @@ server.listen(port, () => {
     console.log("Server running on ");
 
 })
+app.get("/",(req,res) =>{
+    "Server is running";
+})
