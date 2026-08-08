@@ -12,8 +12,12 @@ dotenv.config();
 const rooms = {};
 
 const app = express();
-app.use(cors());
-
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    credentials: true,
+  })
+);
 const port = process.env.PORT || 3001;
 const server = http.createServer(app);
 
